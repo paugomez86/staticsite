@@ -55,3 +55,6 @@ class TestParentNode(unittest.TestCase):
             parent_node.to_html(),
             "<p><b>Bold text</b>Normal text<div><h1>title</h1><i>italic text</i></div>Normal text</p>"
         )
+
+if __name__ == "__main__":
+    unittest.main()
