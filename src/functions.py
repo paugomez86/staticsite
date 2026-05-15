@@ -1,5 +1,4 @@
-import re, os
-from enum import Enum
+import re, os, shutil
 
 from textnode import TextNode
 from htmlnode import ParentNode
@@ -58,7 +57,7 @@ def extract_markdown_images(text):
 def extract_markdown_links(text):
     data = []
     # Regex pattern to find image links [anchor_text](url)
-    matches = re.findall(r"(?<!\!)\[[^\]]+\]\([\w.:/]+\)", text)
+    matches = re.findall(r"(?<!\!)\[[^\]]+\]\([\w.:/-]+\)", text)
     for match in matches:
         # For each match, separate the anchor_text and the url parts. Strip the leading and trailing [] and ()
         anchor_text = re.search(r"\[.*\]", match).group().lstrip("[").rstrip("]")
@@ -291,6 +290,25 @@ def block_ol_to_html_node(block):
     return ParentNode("ol", html_nodes)
 # =====================================================================
 
+
+# Copies the contents or origin to destination recursively.
+# Used to copy the contents from static to public folder.
+def copy_dir_r(origin, destination):
+    if not os.path.exists(origin):
+        raise NotADirectoryError("invalid origin or destination folders")
+    if not os.path.exists(destination):
+        os.mkdir(destination)
+    
+    for item in os.listdir(origin):
+        item_path = os.path.join(origin, item)
+        dest_path = os.path.join(destination, item)
+        if os.path.isdir(item_path):
+            copy_dir_r(item_path, dest_path)
+        else:
+            shutil.copy(item_path, dest_path)
+            print(f"  {item_path}")
+
+
 # Checks if the given string is a valid H1 Markdown string and returns it stripped.
 # Used to generate the title of the page in the head section.
 def extract_title(markdown):
@@ -299,21 +317,47 @@ def extract_title(markdown):
     return markdown.lstrip("#").strip()
 
 
-# Gets the path of the content, an html template, and the destination path for the html document.
-# Generates the document file combining content with template and stores it in dest_path.
-# Creates any necessary subdir.
+
+# Recursive function that traverses the given destination path finding the files.
+# Creates the necessary folders until a file is found. Then calls generate_page().
+# Used to copy the contents of content to public folder.
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+    if not os.path.isdir(dir_path_content):
+        raise Exception("invalid content path")
+    if not os.path.isfile(template_path):
+        raise Exception("invalid template file")
+    if not os.path.exists(dest_dir_path):
+        os.mkdir(dest_dir_path)
+    
+    # Traversing the fiven folder.
+    for item in os.listdir(dir_path_content):
+        # Builds the path of the item in the folder.
+        item_path = os.path.join(dir_path_content, item)
+        # Builds the destination path replacing md extension to html.
+        dest_path = os.path.join(dest_dir_path, item.replace(".md", ".html"))
+        if os.path.isdir(item_path):
+            # If the current item is a folder, calls itself giving the current folder as origin.
+            generate_pages_recursive(item_path, template_path, dest_path)
+        else:
+            # If it's a file, calls generate_page() passing the current MD item, the html target path and the given template.
+            generate_page(item_path, template_path, dest_path)
+
+
+# Gets the path of the page in Markdown format, an html template.
+# Generates the corresponding html file in the given destination.
 def generate_page(from_path, template_path, dest_path):
-    print(f"Generating page from {from_path} to {dest_path} using {template_path}")
+    # Reading source and template files.
     with open(from_path, "r") as f:
         markdown = f.read()
-    
     with open(template_path, "r") as f:
         template = f.read()
     
+    # Getting the H1 header in file to generate the head title tag of the document.
     title = extract_title(markdown.split("\n\n", 1)[0])
     document = template.replace("{{ Title }}", title).replace("{{ Content }}", markdown_to_html_node(markdown).to_html())
     
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True) 
+    # Writing file
     with open(dest_path, "w") as f:
         f.write(document)
+        print(f"  {dest_path}")
     

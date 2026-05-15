@@ -1,51 +1,30 @@
-import os, shutil, argparse
+import os, shutil
 
-from functions import extract_title, generate_page
-
-# Copies the contents or origin to destination recursively.
-# Used to copy the contents from static to public folder.
-def copy_dir_r(origin, destination):
-    if not os.path.exists(origin):
-        raise NotADirectoryError("invalid origin or destination folders")
-    if not os.path.exists(destination):
-        os.mkdir(destination)
-        if args.verbose:
-            print(f"{origin}")
-    
-    for item in os.listdir(origin):
-        item_path = os.path.join(origin, item)
-        dest_path = os.path.join(destination, item)
-        if os.path.isfile(item_path):
-            shutil.copy(item_path, dest_path)
-            if args.verbose:
-                print(f"{item_path}")
-        else:
-            copy_dir_r(item_path, dest_path)
+from functions import copy_dir_r, generate_pages_recursive
 
 
-def main():
-    # Setting argument parser
-    arg_parser = argparse.ArgumentParser(description="Static site generator")
-    arg_parser.add_argument("-V", "--verbose", action="store_true", help="prints static folder copy process")
-    
-    # Catching CLI arguments (see main.sh)
-    global args
-    args = arg_parser.parse_args()
-    
-    # Setting default static and public folders in project root
+def main():    
+    # Setting default static content and Markdown content folders, and default template in project root.
     static_origin = "static"
-    static_destination = "public"
+    content_origin = "content"
+    html_template = "template.html"
     
-    # Removing existing public folder if exists
-    if os.path.exists(static_destination):
-        shutil.rmtree(static_destination)
+    # Default public folder. Where the page is gonna be created.
+    public_destination = "public" 
+
+    
+    # Removing existing public folder if already exists.
+    if os.path.exists(public_destination):
+        shutil.rmtree(public_destination)
         
     # Copying contents of static folder to public
-    copy_dir_r(static_origin, static_destination)
+    print(f"Copying static content from {static_origin} folder:")
+    copy_dir_r(static_origin, public_destination)
     
     # Generating page
-    generate_page("content/index.md", "template.html", "public/index.html")
-    
+    print(f"\nGenerating pages using {html_template} in {public_destination} folder:")
+    generate_pages_recursive(content_origin, html_template, public_destination)
+    print("")
 
 if __name__ == "__main__":
     main()
